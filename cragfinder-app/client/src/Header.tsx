@@ -1,7 +1,7 @@
 import React from "react"
 
-export const TABS = ['map', 'legend', 'info']
-export type Tab = typeof TABS[number]
+export type Tab = 'map' | 'legend' | 'info'
+export const TABS: Tab[] = ['map', 'legend', 'info']
 
 type HeaderProps = {
   tab: Tab
