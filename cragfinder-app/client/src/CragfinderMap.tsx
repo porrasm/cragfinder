@@ -85,7 +85,7 @@ export const CragfinderMap = () => {
   } catch {
   }
 
-  const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>((initialMapState ?? {
+  const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>(({
     bounds: new L.LatLngBounds([0, 0], [0, 0]),
     zoom: 0,
     center: [0, 0]
