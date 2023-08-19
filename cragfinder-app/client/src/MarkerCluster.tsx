@@ -4,7 +4,7 @@ import "leaflet.markercluster/dist/leaflet.markercluster"
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 import { useMap } from "react-leaflet"
-import { Coord } from "./types"
+import { Coord } from "./shared"
 import React from "react"
 
 type ClusterType = 'boulder' | 'cliff' | 'crack' | 'generic'
@@ -38,15 +38,12 @@ const getCluster = (icon: ClusterType) => {
 }
 
 const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon }) => {
-  console.log('Rendering MarkerCluster ' + icon)
   const map = useMap()
 
   const firstCoord = markers[0]
   const [prevFirstCoord, setPrevFirstCoord] = React.useState<Coord | undefined>(undefined)
 
   const cluster = getCluster(icon)
-
-  console.log('zoom: ' + map.getZoom())
 
   map.getBounds
 

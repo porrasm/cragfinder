@@ -1,12 +1,13 @@
 import React, { useEffect } from "react"
-import { MapContainer, Popup, TileLayer, Marker, useMap } from "react-leaflet"
-import { Bounds, Coord, Line } from "./types"
-import { getBoulders, getCliffs, getCracks } from "./api"
+import { MapContainer, TileLayer, useMap } from "react-leaflet"
+import { AreaGrid, Bounds, Coord, Line, MapData, Point, getBoundsGridCells } from "./shared"
+import { getAreaGrid, getMapData } from "./api"
 import L from "leaflet";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import MarkerCluster from "./MarkerCluster";
 
 const MINIMUM_ZOOM = 13
+const MAX_AREAS = 7
 
 const linesToCoords = (lines: Line): Coord => {
   // get center of all line positions
@@ -33,7 +34,6 @@ type Options = Record<Toggle, boolean> & {
 type MapFetchInfo = {
   bounds: L.LatLngBounds
   zoom: number
-  fetchedBounds: L.LatLngBounds[]
 }
 
 const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
@@ -43,15 +43,24 @@ const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
   lng1: latLngBounds.getEast()
 })
 
+const pointToKey = (point: Point) => `${point.x},${point.y}`
+const keyToPoint = (key: string): Point => {
+  const [x, y] = key.split(',').map(s => Number(s))
+  return { x, y }
+}
+
 export const CragfinderMap = () => {
-  const [boulders, setBoulders] = React.useState<Coord[]>([])
-  const [cliffs, setCliffs] = React.useState<Line[]>([])
-  const [cracks, setCracks] = React.useState<Line[]>([])
+  const [areaGrid, setAreaGrid] = React.useState<AreaGrid>()
+  const [mapData, setMapData] = React.useState<MapData>({
+    boulders: [],
+    cliffs: [],
+    cracks: []
+  })
+  const [fetchedIndexes, setFetchedIndexes] = React.useState<Record<string, boolean>>({})
 
   const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>(({
     bounds: new L.LatLngBounds([0, 0], [0, 0]),
     zoom: 0,
-    fetchedBounds: []
   }))
 
   const [options, setOptions] = React.useState<Options>({
@@ -60,6 +69,20 @@ export const CragfinderMap = () => {
     showCracks: false,
     allowLocation: false
   })
+
+  const resetData = () => {
+    setMapData({
+      boulders: [],
+      cliffs: [],
+      cracks: []
+    })
+    setFetchedIndexes({})
+  }
+
+  useEffect(() => {
+    getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
+  }, [])
+
 
   const getUserLocation = () => {
     if (!options.allowLocation) {
@@ -76,44 +99,74 @@ export const CragfinderMap = () => {
   const userLocation = getUserLocation()
 
   useEffect(() => {
+    if (!areaGrid) {
+      return
+    }
+
+    // fetched indexes count
+    if (Object.keys(fetchedIndexes).length > MAX_AREAS) {
+      resetData()
+    }
+
+    if (mapFetch.zoom < MINIMUM_ZOOM) {
+      return
+    }
+
     const bounds = latLngBoundsToBounds(mapFetch.bounds)
 
-    console.log('Fetching boulders: ', bounds)
+    const indexes = getBoundsGridCells(areaGrid, bounds)
+      .map(p => pointToKey({
+        x: p[0],
+        y: p[1]
+      }))
+      .filter(key => !fetchedIndexes[key])
+      .map(keyToPoint)
 
-    if (options.showBoulders) {
-      getBoulders(bounds).then(boulders => setBoulders(boulders))
+    const fetchNewData = async () => {
+      for (const point of indexes) {
+        const data = await getMapData(point)
+        setMapData({
+          boulders: [...mapData.boulders, ...data.boulders],
+          cliffs: [...mapData.cliffs, ...data.cliffs],
+          cracks: [...mapData.cracks, ...data.cracks]
+        })
+        setFetchedIndexes({ ...fetchedIndexes, [pointToKey(point)]: true })
+      }
     }
-    if (options.showCliffs) {
-      getCliffs(bounds).then(cliffs => setCliffs(cliffs))
+
+    fetchNewData()
+
+    if (indexes.length === 0) {
+      console.log('No new indexes to fetch')
+      return
     }
-    if (options.showCracks) {
-      getCracks(bounds).then(cracks => setCracks(cracks))
-    }
+
   }, [mapFetch.bounds])
 
-  console.log(mapFetch)
+  if (!areaGrid) {
+    return <div>Loading...</div>
+  }
 
   const getFilteredBoulders = () => {
     if (!options.showBoulders) {
       return []
     }
-    return boulders.filter(boulder => mapFetch.bounds.contains(boulder))
+    return mapData.boulders.filter(boulder => mapFetch.bounds.contains(boulder))
   }
 
   const getFilteredCliffs = () => {
     if (!options.showCliffs) {
       return []
     }
-    return cliffs.map(linesToCoords).filter(cliff => mapFetch.bounds.contains(cliff))
+    return mapData.cliffs.map(linesToCoords).filter(cliff => mapFetch.bounds.contains(cliff))
   }
 
   const getFilteredCracks = () => {
     if (!options.showCracks) {
       return []
     }
-    return cracks.map(linesToCoords).filter(crack => mapFetch.bounds.contains(crack))
+    return mapData.cracks.map(linesToCoords).filter(crack => mapFetch.bounds.contains(crack))
   }
-
 
   return (
     <div className="map-view">
@@ -122,7 +175,7 @@ export const CragfinderMap = () => {
           <label key={`toggle-${toggle}`}><input type="checkbox" checked={options[toggle]} onChange={() => setOptions({ ...options, [toggle]: !options[toggle] })} /> {toggleLabels[toggle]}</label>
         ))}
       </div>
-      <MapContainer center={[59.84197595742, 22.97207556552406]} zoom={13} scrollWheelZoom={true} id='map' >
+      <MapContainer center={[61.84197595742, 24.37207556552406]} zoom={7} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -142,11 +195,6 @@ const MapHook: React.FC<{ mapFetch: MapFetchInfo, setMapFetch: (mapFetch: MapFet
 
   const pollMap = () => {
     const zoom = map.getZoom()
-    if (zoom < MINIMUM_ZOOM) {
-      setMapFetch({ ...mapFetch, zoom })
-      return
-    }
-
     const bounds = map.getBounds()
     setMapFetch({ ...mapFetch, bounds, zoom })
   }
