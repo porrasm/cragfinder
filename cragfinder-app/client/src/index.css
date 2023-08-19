@@ -33,8 +33,25 @@ body {
 }
 
 .tab {
+  height: 100%;
   cursor: pointer;
   user-select: none;
+  flex: 1 1 100%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tab-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000;
+  letter-spacing: 1px;
+}
+
+.active {
+  background-color: #9cebff;
 }
 
 /* tab not last child */
@@ -68,4 +85,13 @@ body {
 .map-controls input {
   width: 16px;
   height: 16px;
+}
+
+.markdown-container {
+  height: calc(100vh - 50px - 50px);
+  overflow-y: scroll;
+
+  padding: 24px 48px;
+
+  overflow-y: scroll;
 }

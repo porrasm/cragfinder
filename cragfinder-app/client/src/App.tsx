@@ -1,6 +1,7 @@
 import React from "react";
 import { CragfinderMap } from "./CragfinderMap";
 import { Header, TABS, Tab } from "./Header";
+import { Markdown } from "./Markdown";
 
 const App = () => {
   const [tab, setTab] = React.useState<Tab>(TABS[0])
@@ -18,9 +19,9 @@ const Tabs: React.FC<{ tab: Tab }> = ({ tab }) => {
     case 'map':
       return <CragfinderMap />
     case 'legend':
-      return <div>Legend</div>
+      return <Markdown file='legend.md' />
     case 'info':
-      return <div>Info</div>
+      return <Markdown file='info.md' />
   }
 }
 
