@@ -77,7 +77,15 @@ export const CragfinderMap = () => {
   const [cracks, setCracks] = React.useState<Line[]>([])
   const [fetchedIndexes, setFetchedIndexes] = React.useState<Record<string, boolean>>({})
 
-  const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>(({
+  const initialMapStateString = localStorage.getItem('mapState')
+  let initialMapState: MapFetchInfo | undefined = undefined
+
+  try {
+    initialMapState = initialMapStateString ? JSON.parse(initialMapStateString) : undefined
+  } catch {
+  }
+
+  const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>((initialMapState ?? {
     bounds: new L.LatLngBounds([0, 0], [0, 0]),
     zoom: 0,
     center: [0, 0]
@@ -188,7 +196,7 @@ export const CragfinderMap = () => {
           <label key={`toggle-${toggle}`}><input type="checkbox" checked={options[toggle]} onChange={() => setOptions({ ...options, [toggle]: !options[toggle] })} /> {toggleLabels[toggle]}</label>
         ))}
       </div>
-      <MapContainer center={[61.84197595742, 24.37207556552406]} zoom={7} scrollWheelZoom={true} id='map' >
+      <MapContainer center={initialMapState ? initialMapState.center : [61.84197595742, 24.37207556552406]} zoom={initialMapState?.zoom ?? 7} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -211,7 +219,9 @@ const MapHook: React.FC<{ mapFetch: MapFetchInfo, setMapFetch: (mapFetch: MapFet
     const bounds = map.getBounds()
     const centerLatLng = map.getCenter()
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]
-    setMapFetch({ ...mapFetch, bounds, zoom, center })
+    const state = { ...mapFetch, bounds, zoom, center }
+    setMapFetch(state)
+    localStorage.setItem('mapState', JSON.stringify(state))
   }
 
   // set interval to poll map bounds
