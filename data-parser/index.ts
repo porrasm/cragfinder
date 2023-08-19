@@ -21,12 +21,9 @@ type LineStringGeoJSON = {
 
 type LineString = Point[]
 
-type Coord = {
-  lat: number
-  lng: number
-}
+type Coord = [number, number]
 
-GeoPackageAPI.open('./datasource/maasto.gpkg').then(geoPackage => {
+GeoPackageAPI.open('./datasource/finland.gpkg').then(geoPackage => {
   extractPointsToFile(geoPackage, 'kivi', './datasource/boulders.json')
   extractLineStringsToFile(geoPackage, 'jyrkanne', './datasource/cliffs.json')
   extractLineStringsToFile(geoPackage, 'kalliohalkeama', './datasource/cracks.json')
@@ -58,13 +55,13 @@ const extractPointsToFile = (geoPackage: GeoPackage, table: string, filename: st
     x: point.coordinates[0],
     y: point.coordinates[1]
   }))
-  .filter(isValidPoint)
-  .map(pointToLatituteLongitude)
+    .filter(isValidPoint)
+    .map(pointToLatituteLongitude)
 
   saveJsonToFile(points, filename)
 }
 
-const isValidPoint = (point: Point) => { 
+const isValidPoint = (point: Point) => {
   return point.x && point.y && typeof point.x === 'number' && typeof point.y === 'number'
 }
 
@@ -73,8 +70,8 @@ const extractLineStringsToFile = (geoPackage: GeoPackage, table: string, filenam
     x: point[0],
     y: point[1]
   })))
-  .filter(isValidLineString)
-  .map(lineString => lineString.map(pointToLatituteLongitude))
+    .filter(isValidLineString)
+    .map(lineString => lineString.map(pointToLatituteLongitude))
 
   saveJsonToFile(lineStrings, filename)
 }
@@ -84,13 +81,16 @@ const isValidLineString = (lineString: LineString) => {
 }
 
 const saveJsonToFile = (data: any, filename: string) => {
-  const jsonData = JSON.stringify(data, null, 2)
+  const jsonData = JSON.stringify(data)
   fs.writeFileSync(filename, jsonData)
   console.log(`JSON data saved to ${filename}`)
 }
 
 const pointToLatituteLongitude = (point: Point): Coord => {
-  console.log(point)
   const transformed = proj4(etrs89Tm35fin, wgs84, [point.x, point.y])
-  return { lng: transformed[0], lat: transformed[1] }
+  return [to5Decimals(transformed[1]), to5Decimals(transformed[0])]
+}
+
+const to5Decimals = (num: number) => {
+  return Math.round((num + Number.EPSILON) * 100000) / 100000
 }

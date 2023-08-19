@@ -46,6 +46,10 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon }) => {
 
   const cluster = getCluster(icon)
 
+  console.log('zoom: ' + map.getZoom())
+
+  map.getBounds
+
   const customIcon = icon === 'generic' ? GENERIC_ICON : new L.Icon({
     iconUrl: `${icon}.png`,
     iconSize: [30, 30]
@@ -55,7 +59,7 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon }) => {
     setPrevFirstCoord(firstCoord)
     cluster.clearLayers()
     markers.forEach(position =>
-      L.marker(new L.LatLng(position.lat, position.lng), {
+      L.marker(new L.LatLng(position[0], position[1]), {
         icon: customIcon
       }).addTo(cluster)
     )

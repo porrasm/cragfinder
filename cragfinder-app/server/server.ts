@@ -12,9 +12,16 @@ const createServer = () => {
   app.use(express.static('build'))
   app.use(cors())
   app.use(morgan('tiny'))
+  //app.use(tryCatchMiddleware)
   app.use('/api', defaultRouter)
   const server = http.createServer(app)
   server.listen(port, () => console.log(`Relay server running on port ${port}`))
+}
+
+const tryCatchMiddleware = (fn: any) => {
+  return (req: any, res: any, next: any) => {
+    Promise.resolve(fn(req, res, next)).catch(next)
+  }
 }
 
 export default createServer
