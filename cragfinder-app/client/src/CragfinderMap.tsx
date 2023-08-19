@@ -49,6 +49,19 @@ const keyToPoint = (key: string): Point => {
   return { x, y }
 }
 
+const optionsFromLocalStorage = (): Options => {
+  const options = localStorage.getItem('options')
+  if (!options) {
+    return {
+      showBoulders: true,
+      showCliffs: false,
+      showCracks: false,
+      allowLocation: false
+    }
+  }
+  return JSON.parse(options)
+}
+
 export const CragfinderMap = () => {
   const [areaGrid, setAreaGrid] = React.useState<AreaGrid>()
   const [mapData, setMapData] = React.useState<MapData>({
@@ -63,12 +76,7 @@ export const CragfinderMap = () => {
     zoom: 0,
   }))
 
-  const [options, setOptions] = React.useState<Options>({
-    showBoulders: true,
-    showCliffs: false,
-    showCracks: false,
-    allowLocation: false
-  })
+  const [options, setOptions] = React.useState<Options>(optionsFromLocalStorage())
 
   const resetData = () => {
     setMapData({
@@ -83,6 +91,9 @@ export const CragfinderMap = () => {
     getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('options', JSON.stringify(options))
+  }, [options])
 
   const getUserLocation = () => {
     if (!options.allowLocation) {
@@ -137,7 +148,6 @@ export const CragfinderMap = () => {
     fetchNewData()
 
     if (indexes.length === 0) {
-      console.log('No new indexes to fetch')
       return
     }
 
