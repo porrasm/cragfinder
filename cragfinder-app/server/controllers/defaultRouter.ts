@@ -12,6 +12,7 @@ const router = Router()
 
 let areaGrid: AreaGrid = []
 let partitionedData: FullPartitionedData = []
+let cracks: Line[] = []
 
 router.get('/area', async (req, res) => {
   try {
@@ -26,13 +27,23 @@ router.get('/map', async (req, res) => {
   try {
     const point = pointFromQuery(req.query)
 
-    if (point) {
+    if (point && point.x >= 0 && point.x < LAT_COUNT && point.y >= 0 && point.y < LNG_COUNT) {
       const data = partitionedData[point.x][point.y]
       res.json(data)
       return
     }
 
     res.status(400).send()
+  } catch (e) {
+    console.log(e)
+    res.status(500).send()
+  }
+})
+
+// Finland has very few cracks, so we can just return all of them
+router.get('/cracks', async (req, res) => {
+  try {
+    res.json(cracks)
   } catch (e) {
     console.log(e)
     res.status(500).send()
@@ -69,6 +80,8 @@ const loadInitialData = async () => {
     console.log('Data not loaded')
     return
   }
+
+  cracks = initialCracks
 
   initAreaGrid([...initialBoulders, ...initialCliffs.map(c => c[0]), ...initialCracks.map(c => c[0])])
 

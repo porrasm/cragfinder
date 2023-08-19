@@ -1,13 +1,13 @@
 import React, { useEffect } from "react"
 import { MapContainer, TileLayer, useMap } from "react-leaflet"
-import { AreaGrid, Bounds, Coord, Line, MapData, Point, getBoundsGridCells } from "./shared"
-import { getAreaGrid, getMapData } from "./api"
-import L from "leaflet";
+import { AreaGrid, Bounds, Coord, Line, MapData, Point, findPartitionOfPoint, getBoundsGridCells } from "./shared"
+import { getAreaGrid, getCracks, getMapData } from "./api"
+import L, { bounds, point } from "leaflet";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import MarkerCluster from "./MarkerCluster";
 
 const MINIMUM_ZOOM = 13
-const MAX_AREAS = 7
+const MAX_AREAS = 5
 
 const linesToCoords = (lines: Line): Coord => {
   // get center of all line positions
@@ -34,6 +34,11 @@ type Options = Record<Toggle, boolean> & {
 type MapFetchInfo = {
   bounds: L.LatLngBounds
   zoom: number
+  center: Coord
+}
+
+const isValidindex = (point: Point, areaGrid: AreaGrid) => {
+  return point.x >= 0 && point.x < areaGrid.length && point.y >= 0 && point.y < areaGrid[0].length
 }
 
 const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
@@ -69,26 +74,20 @@ export const CragfinderMap = () => {
     cliffs: [],
     cracks: []
   })
+  const [cracks, setCracks] = React.useState<Line[]>([])
   const [fetchedIndexes, setFetchedIndexes] = React.useState<Record<string, boolean>>({})
 
   const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>(({
     bounds: new L.LatLngBounds([0, 0], [0, 0]),
     zoom: 0,
+    center: [0, 0]
   }))
 
   const [options, setOptions] = React.useState<Options>(optionsFromLocalStorage())
 
-  const resetData = () => {
-    setMapData({
-      boulders: [],
-      cliffs: [],
-      cracks: []
-    })
-    setFetchedIndexes({})
-  }
-
   useEffect(() => {
     getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
+    getCracks().then(cracks => setCracks(cracks))
   }, [])
 
   useEffect(() => {
@@ -114,34 +113,38 @@ export const CragfinderMap = () => {
       return
     }
 
-    // fetched indexes count
-    if (Object.keys(fetchedIndexes).length > MAX_AREAS) {
-      resetData()
-    }
-
-    if (mapFetch.zoom < MINIMUM_ZOOM) {
-      return
-    }
-
     const bounds = latLngBoundsToBounds(mapFetch.bounds)
 
-    const indexes = getBoundsGridCells(areaGrid, bounds)
+    const indexes = (mapFetch.zoom < MINIMUM_ZOOM ? [findPartitionOfPoint(areaGrid, mapFetch.center)] : getBoundsGridCells(areaGrid, bounds))
       .map(p => pointToKey({
         x: p[0],
         y: p[1]
       }))
       .filter(key => !fetchedIndexes[key])
       .map(keyToPoint)
+      .filter(point => isValidindex(point, areaGrid))
+      .filter((p, i) => i < MAX_AREAS)
 
     const fetchNewData = async () => {
       for (const point of indexes) {
-        const data = await getMapData(point)
-        setMapData({
-          boulders: [...mapData.boulders, ...data.boulders],
-          cliffs: [...mapData.cliffs, ...data.cliffs],
-          cracks: [...mapData.cracks, ...data.cracks]
-        })
-        setFetchedIndexes({ ...fetchedIndexes, [pointToKey(point)]: true })
+        try {
+          const data = await getMapData(point)
+
+          if (Object.keys(fetchedIndexes).length >= MAX_AREAS) {
+            setMapData(data)
+            setFetchedIndexes({ [pointToKey(point)]: true })
+            return
+          }
+
+          setMapData({
+            boulders: [...mapData.boulders, ...data.boulders],
+            cliffs: [...mapData.cliffs, ...data.cliffs],
+            cracks: [...mapData.cracks, ...data.cracks]
+          })
+          setFetchedIndexes({ ...fetchedIndexes, [pointToKey(point)]: true })
+        } catch {
+
+        }
       }
     }
 
@@ -175,7 +178,7 @@ export const CragfinderMap = () => {
     if (!options.showCracks) {
       return []
     }
-    return mapData.cracks.map(linesToCoords).filter(crack => mapFetch.bounds.contains(crack))
+    return cracks.map(linesToCoords).filter(crack => mapFetch.bounds.contains(crack))
   }
 
   return (
@@ -206,14 +209,16 @@ const MapHook: React.FC<{ mapFetch: MapFetchInfo, setMapFetch: (mapFetch: MapFet
   const pollMap = () => {
     const zoom = map.getZoom()
     const bounds = map.getBounds()
-    setMapFetch({ ...mapFetch, bounds, zoom })
+    const centerLatLng = map.getCenter()
+    const center: Coord = [centerLatLng.lat, centerLatLng.lng]
+    setMapFetch({ ...mapFetch, bounds, zoom, center })
   }
 
   // set interval to poll map bounds
   useEffect(() => {
     const interval = setInterval(() => {
       pollMap()
-    }, 2500)
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [map])

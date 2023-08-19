@@ -14,3 +14,9 @@ export const getMapData = async (point: Point): Promise<MapData> => {
   const response = await axios.get(url, { params: { ...point } })
   return response.data
 }
+
+export const getCracks = async (): Promise<Line[]> => {
+  const url = `${BASE_URL}/cracks`
+  const response = await axios.get(url)
+  return response.data
+}

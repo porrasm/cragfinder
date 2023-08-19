@@ -45,8 +45,6 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon }) => {
 
   const cluster = getCluster(icon)
 
-  map.getBounds
-
   const customIcon = icon === 'generic' ? GENERIC_ICON : new L.Icon({
     iconUrl: `${icon}.png`,
     iconSize: [30, 30]

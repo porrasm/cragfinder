@@ -1,5 +1,5 @@
-export const LAT_COUNT = 40
-export const LNG_COUNT = 40
+export const LAT_COUNT = 25
+export const LNG_COUNT = 25
 
 export type Coord = [number, number]
 export type Line = Coord[]
