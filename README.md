@@ -4,7 +4,7 @@ Cragfinder is an app which shows data about boulders, cliffs and cracks (ground 
 
 ## Links
 
-[Cragfinder app](https://video.porras.club/)
+[Cragfinder app](https://cragfinder.porras.club/)
 
 [GitHub](https://github.com/porrasm/cragfinder)
 
