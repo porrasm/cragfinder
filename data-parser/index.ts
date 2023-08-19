@@ -27,7 +27,7 @@ type Coord = {
 }
 
 GeoPackageAPI.open('./datasource/maasto.gpkg').then(geoPackage => {
-  extractPointsToFile(geoPackage, 'kivi', './datasource/rocks.json')
+  extractPointsToFile(geoPackage, 'kivi', './datasource/boulders.json')
   extractLineStringsToFile(geoPackage, 'jyrkanne', './datasource/cliffs.json')
   extractLineStringsToFile(geoPackage, 'kalliohalkeama', './datasource/cracks.json')
   geoPackage.close()
