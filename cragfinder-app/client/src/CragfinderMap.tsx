@@ -8,9 +8,7 @@ import MarkerCluster from "./MarkerCluster";
 import { MapSession, SettingToggle, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
 import { pickRandomlyFromArray } from "./util";
 
-const MINIMUM_ZOOM = 13
-const MAX_AREAS = 15
-
+const MINIMUM_ZOOM = 11
 const MAX_MARKERS = 250
 
 const linesToCoords = (lines: Line): Coord => {
@@ -38,12 +36,6 @@ const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
   lat1: latLngBounds.getNorth(),
   lng1: latLngBounds.getEast()
 })
-
-const pointToKey = (point: Point) => `${point.x},${point.y}`
-const keyToPoint = (key: string): Point => {
-  const [x, y] = key.split(',').map(s => Number(s))
-  return { x, y }
-}
 
 export const CragFinderMapWrapper: React.FC = () => {
   const userDataManager = getUserDataManager()
@@ -133,8 +125,6 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cracks: []
   })
 
-  const [fetchedIndexes, setFetchedIndexes] = React.useState<Record<string, boolean>>({})
-
   const getUserLocation = () => {
     if (!userSettings.allowLocation) {
       return null
@@ -153,37 +143,57 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     console.log({ userSession })
     const bounds = userSession.bounds
 
-    const indexes = (userSession.zoom < MINIMUM_ZOOM ? [findPartitionOfPoint(areaGrid, userSession.center)] : getBoundsGridCells(areaGrid, bounds))
-      .map(p => pointToKey({
-        x: p[0],
-        y: p[1]
-      }))
-      .filter(key => !fetchedIndexes[key])
-      .map(keyToPoint)
-      .filter(point => isValidindex(point, areaGrid))
-      .filter((p, i) => i < MAX_AREAS)
+    type FetchOption = {
+      index: Point,
+      fetchFrom: 'cache' | 'cacheOrServer'
+    }
+
+    const getFetchOptions = (): FetchOption[] => {
+      const fetchFrom: 'cache' | 'cacheOrServer' = userSession.zoom < MINIMUM_ZOOM ? 'cache' : 'cacheOrServer'
+      const indexes = getBoundsGridCells(areaGrid, bounds).map(point => ({ index: { x: point[0], y: point[1] }, fetchFrom })).filter(point => isValidindex(point.index, areaGrid))
+
+      if (userSession.zoom < MINIMUM_ZOOM) {
+        const currentPoint = findPartitionOfPoint(areaGrid, userSession.center)
+        const indexesWithoutCurrent = indexes.filter(point => point.index.x !== currentPoint[0] && point.index.y !== currentPoint[1])
+        return [{
+          index: {
+            x: currentPoint[0],
+            y: currentPoint[1]
+          },
+          fetchFrom: 'cacheOrServer'
+        }, ...indexesWithoutCurrent]
+      }
+
+      return indexes
+    }
+
+    const indexes: FetchOption[] = getFetchOptions()
+
+    console.log({ indexes })
 
     const fetchNewData = async () => {
-      for (const point of indexes) {
+      const boulders: Coord[] = []
+      const cliffs: Line[] = []
+      const cracks: Line[] = []
+
+      for (const fetchOption of indexes) {
         try {
-          const data = await getMapData(point)
-
-          if (Object.keys(fetchedIndexes).length >= MAX_AREAS) {
-            setMapData(data)
-            setFetchedIndexes({ [pointToKey(point)]: true })
-            return
+          const data = await getMapData(fetchOption.index, fetchOption.fetchFrom)
+          if (data) {
+            boulders.push(...data.boulders)
+            cliffs.push(...data.cliffs)
+            cracks.push(...data.cracks)
           }
-
-          setMapData(prev => ({
-            boulders: [...prev.boulders, ...data.boulders],
-            cliffs: [...prev.cliffs, ...data.cliffs],
-            cracks: [...prev.cracks, ...data.cracks]
-          }))
-          setFetchedIndexes(prev => ({ ...prev, [pointToKey(point)]: true }))
         } catch {
 
         }
       }
+
+      setMapData({
+        boulders,
+        cliffs,
+        cracks
+      })
     }
 
     fetchNewData()
@@ -260,6 +270,7 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
     }
 
     const zoom = map.getZoom()
+    console.log({ zoom })
     const bounds = latLngBoundsToBounds(map.getBounds())
     const centerLatLng = map.getCenter()
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]
