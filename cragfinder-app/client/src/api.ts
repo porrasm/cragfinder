@@ -31,8 +31,6 @@ const clearMapDataCache = () => {
     return
   }
 
-  console.log(`Clearing ${objectsToClear} objects from cache`)
-
   const keysOrderedByCachedAt = orderBy(Object.keys(MAP_DATA_CACHE.cachedRequests), (key) => MAP_DATA_CACHE.cachedRequests[key].cachedAt)
 
   const keysToRemove: string[] = []
@@ -68,7 +66,6 @@ export const getCracks = async (): Promise<Line[]> => {
 }
 
 export const getMapData = async (point: Point, fetchFrom: 'cache' | 'cacheOrServer'): Promise<MapData | undefined> => {
-  console.log(`Fetching map data for ${point.x},${point.y}`)
   const url = `${BASE_URL}/map`
   const key = `${point.x},${point.y}`
 
@@ -110,9 +107,6 @@ export const getMapData = async (point: Point, fetchFrom: 'cache' | 'cacheOrServ
     objectCount: objectCount,
     cachedAt: Date.now(),
   }
-
-
-  console.log(`Cached ${objectCount} objects for ${key} (total: ${MAP_DATA_CACHE.totalObjectCount}))`)
 
   clearMapDataCache()
 

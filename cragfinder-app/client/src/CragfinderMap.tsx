@@ -124,23 +124,36 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cliffs: [],
     cracks: []
   })
-
-  const getUserLocation = () => {
-    if (!userSettings.allowLocation) {
-      return null
-    }
-    if (!navigator.geolocation) {
-      return null
-    }
-    return navigator.geolocation.getCurrentPosition((position) => {
-      return [position.coords.latitude, position.coords.longitude]
-    })
-  }
-
-  const userLocation = getUserLocation()
+  const [userLocation, setUserLocation] = React.useState<Coord>()
 
   useEffect(() => {
-    console.log({ userSession })
+    // set interval to update user location
+    const interval = setInterval(() => {
+      if (!userSettings.allowLocation) {
+        return
+      }
+
+      if ("geolocation" in navigator === false) {
+        return null
+      }
+
+      navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        const location: Coord = [lat, lng]
+        setUserLocation(location)
+      }, (error) => {
+        console.log(error)
+        return null
+      })
+
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [userSettings.allowLocation, setUserLocation])
+
+
+  useEffect(() => {
     const bounds = userSession.bounds
 
     type FetchOption = {
@@ -169,9 +182,11 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
 
     const indexes: FetchOption[] = getFetchOptions()
 
-    console.log({ indexes })
-
     const fetchNewData = async () => {
+      if (!userSettings.showBoulders && !userSettings.showCliffs && !userSettings.showCracks) {
+        return
+      }
+
       const boulders: Coord[] = []
       const cliffs: Line[] = []
       const cracks: Line[] = []
@@ -270,7 +285,6 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
     }
 
     const zoom = map.getZoom()
-    console.log({ zoom })
     const bounds = latLngBoundsToBounds(map.getBounds())
     const centerLatLng = map.getCenter()
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]

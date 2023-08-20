@@ -65,4 +65,4 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon }) => {
   return null
 }
 
-export default React.memo(MarkerCluster)
+export default MarkerCluster
