@@ -2,13 +2,16 @@ import React, { useEffect } from "react"
 import { MapContainer, TileLayer, useMap } from "react-leaflet"
 import { AreaGrid, Bounds, Coord, Line, MapData, Point, findPartitionOfPoint, getBoundsGridCells } from "./shared"
 import { getAreaGrid, getCracks, getMapData } from "./api"
-import L, { bounds, point } from "leaflet";
+import L from "leaflet";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import MarkerCluster from "./MarkerCluster";
 import { MapSession, SettingToggle, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
+import { pickRandomlyFromArray } from "./util";
 
 const MINIMUM_ZOOM = 13
-const MAX_AREAS = 5
+const MAX_AREAS = 15
+
+const MAX_MARKERS = 250
 
 const linesToCoords = (lines: Line): Coord => {
   // get center of all line positions
@@ -199,21 +202,22 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     if (!userSettings.showBoulders) {
       return []
     }
-    return mapData.boulders//.filter(boulder => mapFetch.bounds.contains(boulder))
+
+    return pickRandomlyFromArray(mapData.boulders.filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
   }
 
   const getFilteredCliffs = () => {
     if (!userSettings.showCliffs) {
       return []
     }
-    return mapData.cliffs.map(linesToCoords)//.filter(cliff => mapFetch.bounds.contains(cliff))
+    return pickRandomlyFromArray(mapData.cliffs.map(linesToCoords).filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
   }
 
   const getFilteredCracks = () => {
     if (!userSettings.showCracks) {
       return []
     }
-    return cracks.map(linesToCoords)//.filter(crack => mapFetch.bounds.contains(crack))
+    return pickRandomlyFromArray(cracks.map(linesToCoords).filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
   }
 
   return (
@@ -265,3 +269,8 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
 
   return null
 }
+
+const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
+  return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
+}
+

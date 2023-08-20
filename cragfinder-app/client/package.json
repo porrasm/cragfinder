@@ -15,7 +15,8 @@
     "react-leaflet": "^4.2.1",
     "react-markdown": "^8.0.7",
     "react-scripts": "^5.0.1",
-    "scss": "^0.2.4"
+    "scss": "^0.2.4",
+    "seedrandom": "^3.0.5"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -30,7 +31,8 @@
     "@types/leaflet": "^1.9.3",
     "@types/leaflet.markercluster": "^1.5.1",
     "@types/react": "^18.2.20",
-    "@types/react-dom": "^18.2.7"
+    "@types/react-dom": "^18.2.7",
+    "@types/seedrandom": "^3.0.5"
   },
   "browserslist": {
     "production": [
