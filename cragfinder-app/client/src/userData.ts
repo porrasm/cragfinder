@@ -144,4 +144,13 @@ const LOCAL_STORAGE_MANAGER = (): UserDataManager => ({
   },
 })
 
-export const getUserDataManager = (): UserDataManager => LOCAL_STORAGE_MANAGER()
+const DUMMY_DATA_MANAGER = (): UserDataManager => ({
+  loadSettings: async () => DEFAULT_SETTINGS(),
+  saveSettings: async () => {},
+  loadSession: async () => DEFAULT_SESSION(),
+  saveSession: async () => {},
+  loadUserData: async () => DEFAULT_USER_DATA(),
+  saveUserData: async () => {},
+})
+
+export const getUserDataManager = (): UserDataManager => DUMMY_DATA_MANAGER()
