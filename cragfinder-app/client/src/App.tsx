@@ -1,5 +1,5 @@
 import React from "react";
-import { CragfinderMap } from "./CragfinderMap";
+import { CragFinderMapWrapper } from "./CragfinderMap";
 import { Header, TABS, Tab } from "./Header";
 import { Markdown } from "./Markdown";
 
@@ -17,7 +17,7 @@ const App = () => {
 const Tabs: React.FC<{ tab: Tab }> = ({ tab }) => {
   switch (tab) {
     case 'map':
-      return <CragfinderMap />
+      return <CragFinderMapWrapper />
     case 'legend':
       return <Markdown file='legend.md' />
     case 'info':

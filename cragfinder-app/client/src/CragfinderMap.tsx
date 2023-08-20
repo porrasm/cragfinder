@@ -5,6 +5,7 @@ import { getAreaGrid, getCracks, getMapData } from "./api"
 import L, { bounds, point } from "leaflet";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import MarkerCluster from "./MarkerCluster";
+import { MapSession, SettingToggle, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
 
 const MINIMUM_ZOOM = 13
 const MAX_AREAS = 5
@@ -17,24 +18,11 @@ const linesToCoords = (lines: Line): Coord => {
   return [lat, lng]
 }
 
-const TOGGLES = ['showBoulders', 'showCliffs', 'showCracks', 'allowLocation'] as const
-type Toggle = typeof TOGGLES[number]
-
-const toggleLabels: Record<Toggle, string> = {
+const toggleLabels: Record<SettingToggle, string> = {
   showBoulders: 'Boulders',
   showCliffs: 'Cliffs',
   showCracks: 'Cracks',
   allowLocation: 'Allow location'
-}
-
-type Options = Record<Toggle, boolean> & {
-
-}
-
-type MapFetchInfo = {
-  bounds: L.LatLngBounds
-  zoom: number
-  center: Coord
 }
 
 const isValidindex = (point: Point, areaGrid: AreaGrid) => {
@@ -54,56 +42,98 @@ const keyToPoint = (key: string): Point => {
   return { x, y }
 }
 
-const optionsFromLocalStorage = (): Options => {
-  const options = localStorage.getItem('options')
-  if (!options) {
-    return {
-      showBoulders: true,
-      showCliffs: false,
-      showCracks: false,
-      allowLocation: false
+export const CragFinderMapWrapper: React.FC = () => {
+  const userDataManager = getUserDataManager()
+
+  const [areaGrid, setAreaGrid] = React.useState<AreaGrid>()
+  const [cracks, setCracks] = React.useState<Line[]>([])
+
+  const [userSettings, setUserSettings] = React.useState<UserSettings>()
+  const [userSession, setUserSession] = React.useState<MapSession>()
+  const [userData, setUserData] = React.useState<UserData>()
+
+  useEffect(() => {
+    getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
+    getCracks().then(cracks => setCracks(cracks))
+
+    userDataManager.loadSettings().then(settings => setUserSettings(settings))
+    userDataManager.loadSession().then(session => setUserSession(session))
+    userDataManager.loadUserData().then(userData => setUserData(userData))
+  }, [])
+
+  const updateSettings = (settings: UserSettings) => {
+    try {
+      userDataManager.saveSettings(settings).then(() => setUserSettings(settings))
+    } catch (e) {
+      console.error(e)
     }
   }
-  return JSON.parse(options)
+
+  const updateSession = (session: MapSession) => {
+    try {
+      userDataManager.saveSession(session).then(() => setUserSession(session))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const updateUserData = (userData: UserData) => {
+    try {
+      userDataManager.saveUserData(userData).then(() => setUserData(userData))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  if (!areaGrid || !cracks || !userSettings || !userSession || !userData) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <CragfinderMap
+      areaGrid={areaGrid}
+      cracks={cracks}
+      userSettings={userSettings}
+      userSession={userSession}
+      userData={userData}
+      updateSettings={updateSettings}
+      updateSession={updateSession}
+      updateUserData={updateUserData}
+    />
+  )
 }
 
-export const CragfinderMap = () => {
-  const [areaGrid, setAreaGrid] = React.useState<AreaGrid>()
+type CragFinderProps = {
+  areaGrid: AreaGrid,
+  cracks: Line[],
+  userSettings: UserSettings,
+  userSession: MapSession,
+  userData: UserData,
+  updateSettings: (settings: UserSettings) => void,
+  updateSession: (session: MapSession) => void,
+  updateUserData: (userData: UserData) => void
+}
+
+const CragfinderMap: React.FC<CragFinderProps> = ({
+  areaGrid,
+  cracks,
+  userSettings,
+  userSession,
+  userData,
+  updateSettings,
+  updateSession,
+  updateUserData
+}) => {
   const [mapData, setMapData] = React.useState<MapData>({
     boulders: [],
     cliffs: [],
     cracks: []
   })
-  const [cracks, setCracks] = React.useState<Line[]>([])
+
   const [fetchedIndexes, setFetchedIndexes] = React.useState<Record<string, boolean>>({})
 
-  const initialMapStateString = localStorage.getItem('mapState')
-  let initialMapState: MapFetchInfo | undefined = undefined
-
-  try {
-    initialMapState = initialMapStateString ? JSON.parse(initialMapStateString) : undefined
-  } catch {
-  }
-
-  const [mapFetch, setMapFetch] = React.useState<MapFetchInfo>(({
-    bounds: new L.LatLngBounds([0, 0], [0, 0]),
-    zoom: 0,
-    center: [0, 0]
-  }))
-
-  const [options, setOptions] = React.useState<Options>(optionsFromLocalStorage())
-
-  useEffect(() => {
-    getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
-    getCracks().then(cracks => setCracks(cracks))
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('options', JSON.stringify(options))
-  }, [options])
-
   const getUserLocation = () => {
-    if (!options.allowLocation) {
+    if (!userSettings.allowLocation) {
       return null
     }
     if (!navigator.geolocation) {
@@ -117,13 +147,10 @@ export const CragfinderMap = () => {
   const userLocation = getUserLocation()
 
   useEffect(() => {
-    if (!areaGrid) {
-      return
-    }
+    console.log({ userSession })
+    const bounds = userSession.bounds
 
-    const bounds = latLngBoundsToBounds(mapFetch.bounds)
-
-    const indexes = (mapFetch.zoom < MINIMUM_ZOOM ? [findPartitionOfPoint(areaGrid, mapFetch.center)] : getBoundsGridCells(areaGrid, bounds))
+    const indexes = (userSession.zoom < MINIMUM_ZOOM ? [findPartitionOfPoint(areaGrid, userSession.center)] : getBoundsGridCells(areaGrid, bounds))
       .map(p => pointToKey({
         x: p[0],
         y: p[1]
@@ -144,12 +171,12 @@ export const CragfinderMap = () => {
             return
           }
 
-          setMapData({
-            boulders: [...mapData.boulders, ...data.boulders],
-            cliffs: [...mapData.cliffs, ...data.cliffs],
-            cracks: [...mapData.cracks, ...data.cracks]
-          })
-          setFetchedIndexes({ ...fetchedIndexes, [pointToKey(point)]: true })
+          setMapData(prev => ({
+            boulders: [...prev.boulders, ...data.boulders],
+            cliffs: [...prev.cliffs, ...data.cliffs],
+            cracks: [...prev.cracks, ...data.cracks]
+          }))
+          setFetchedIndexes(prev => ({ ...prev, [pointToKey(point)]: true }))
         } catch {
 
         }
@@ -162,47 +189,47 @@ export const CragfinderMap = () => {
       return
     }
 
-  }, [mapFetch.bounds])
+  }, [userSession.bounds])
 
   if (!areaGrid) {
     return <div>Loading...</div>
   }
 
   const getFilteredBoulders = () => {
-    if (!options.showBoulders) {
+    if (!userSettings.showBoulders) {
       return []
     }
-    return mapData.boulders.filter(boulder => mapFetch.bounds.contains(boulder))
+    return mapData.boulders//.filter(boulder => mapFetch.bounds.contains(boulder))
   }
 
   const getFilteredCliffs = () => {
-    if (!options.showCliffs) {
+    if (!userSettings.showCliffs) {
       return []
     }
-    return mapData.cliffs.map(linesToCoords).filter(cliff => mapFetch.bounds.contains(cliff))
+    return mapData.cliffs.map(linesToCoords)//.filter(cliff => mapFetch.bounds.contains(cliff))
   }
 
   const getFilteredCracks = () => {
-    if (!options.showCracks) {
+    if (!userSettings.showCracks) {
       return []
     }
-    return cracks.map(linesToCoords).filter(crack => mapFetch.bounds.contains(crack))
+    return cracks.map(linesToCoords)//.filter(crack => mapFetch.bounds.contains(crack))
   }
 
   return (
     <div className="map-view">
       <div className="map-controls">
         {TOGGLES.map(toggle => (
-          <label key={`toggle-${toggle}`}><input type="checkbox" checked={options[toggle]} onChange={() => setOptions({ ...options, [toggle]: !options[toggle] })} /> {toggleLabels[toggle]}</label>
+          <label key={`toggle-${toggle}`}><input type="checkbox" checked={userSettings[toggle]} onChange={() => updateSettings({ ...userSettings, [toggle]: !userSettings[toggle] })} /> {toggleLabels[toggle]}</label>
         ))}
       </div>
-      <MapContainer center={initialMapState ? initialMapState.center : [61.84197595742, 24.37207556552406]} zoom={initialMapState?.zoom ?? 7} scrollWheelZoom={true} id='map' >
+      <MapContainer center={userSession.center} zoom={userSession.zoom} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapHook mapFetch={mapFetch} setMapFetch={setMapFetch} />
-        <MarkerCluster key={'user-location'} markers={options.allowLocation && userLocation ? [userLocation] : []} icon="generic" />
+        <MapHook mapFetch={userSession} setMapFetch={updateSession} />
+        <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocation ? [userLocation] : []} icon="generic" />
         <MarkerCluster key={'boulder-cluster'} markers={getFilteredBoulders()} icon="boulder" />
         <MarkerCluster key={'cliff-cluster'} markers={getFilteredCliffs()} icon="cliff" />
         <MarkerCluster key={'crack-cluster'} markers={getFilteredCracks()} icon="crack" />
@@ -211,27 +238,30 @@ export const CragfinderMap = () => {
   )
 }
 
-const MapHook: React.FC<{ mapFetch: MapFetchInfo, setMapFetch: (mapFetch: MapFetchInfo) => void }> = ({ mapFetch, setMapFetch }) => {
+const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void }> = ({ mapFetch, setMapFetch }) => {
   const map = useMap()
 
+  useEffect(() => {
+    pollMap()
+    map.on('moveend', pollMap)
+    const remove = () => {
+      map.off('moveend', pollMap)
+    }
+    return remove
+  }, [map])
+
   const pollMap = () => {
+    if (!map) {
+      return
+    }
+
     const zoom = map.getZoom()
-    const bounds = map.getBounds()
+    const bounds = latLngBoundsToBounds(map.getBounds())
     const centerLatLng = map.getCenter()
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]
     const state = { ...mapFetch, bounds, zoom, center }
     setMapFetch(state)
-    localStorage.setItem('mapState', JSON.stringify(state))
   }
-
-  // set interval to poll map bounds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      pollMap()
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [map])
 
   return null
 }
