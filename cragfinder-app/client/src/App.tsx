@@ -2,15 +2,18 @@ import React from "react";
 import { CragFinderMapWrapper } from "./CragfinderMap";
 import { Header, TABS, Tab } from "./Header";
 import { Markdown } from "./Markdown";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 const App = () => {
   const [tab, setTab] = React.useState<Tab>(TABS[0])
 
   return (
-    <div>
-      <Header tab={tab} setTab={setTab} />
-      <Tabs tab={tab} />
-    </div>
+    <ErrorBoundary>
+      <div>
+        <Header tab={tab} setTab={setTab} />
+        <Tabs tab={tab} />
+      </div>
+    </ErrorBoundary>
   )
 }
 

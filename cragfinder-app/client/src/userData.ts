@@ -1,10 +1,11 @@
-import L from "leaflet"
-import { Bounds, Coord, Line } from "./shared"
+import { AvailableMapType, Bounds, Coord, Line } from "./shared"
 
 export const TOGGLES = ['showBoulders', 'showCliffs', 'showCracks', 'allowLocation', 'focusLocation'] as const
 export type SettingToggle = typeof TOGGLES[number]
 
-export type UserSettings = Record<SettingToggle, boolean> & {}
+export type UserSettings = Record<SettingToggle, boolean> & {
+  mapToUse: AvailableMapType
+}
 
 export type MapSession = {
   bounds: Bounds
@@ -87,6 +88,7 @@ export const DEFAULT_SETTINGS = (): UserSettings => ({
   showCracks: false,
   allowLocation: false,
   focusLocation: false,
+  mapToUse: 'openstreetmap',
 })
 
 export const DEFAULT_SESSION = (): MapSession => ({
@@ -154,4 +156,4 @@ const DUMMY_DATA_MANAGER = (): UserDataManager => ({
   saveUserData: async () => { },
 })
 
-export const getUserDataManager = (): UserDataManager => DUMMY_DATA_MANAGER()
+export const getUserDataManager = (): UserDataManager => LOCAL_STORAGE_MANAGER()

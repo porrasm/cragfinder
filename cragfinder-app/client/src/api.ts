@@ -2,7 +2,7 @@ import axios from "axios"
 import { AreaGrid, Bounds, Coord, Line, MapData, Point } from "./shared"
 import { orderBy } from "lodash"
 
-const BASE_URL = "/api"
+const ELEMENTS_BASE_URL = "/api/elements"
 
 type CachedRequest<T> = {
   data: T | undefined
@@ -54,19 +54,19 @@ const clearMapDataCache = () => {
 }
 
 export const getAreaGrid = async (): Promise<AreaGrid> => {
-  const url = `${BASE_URL}/area`
+  const url = `${ELEMENTS_BASE_URL}/area`
   const response = await axios.get(url)
   return response.data
 }
 
 export const getCracks = async (): Promise<Line[]> => {
-  const url = `${BASE_URL}/cracks`
+  const url = `${ELEMENTS_BASE_URL}/cracks`
   const response = await axios.get(url)
   return response.data
 }
 
 export const getMapData = async (point: Point, fetchFrom: 'cache' | 'cacheOrServer'): Promise<MapData | undefined> => {
-  const url = `${BASE_URL}/map`
+  const url = `${ELEMENTS_BASE_URL}/map`
   const key = `${point.x},${point.y}`
 
   if (MAP_DATA_CACHE.cachedRequests[key]) {

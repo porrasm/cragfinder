@@ -1,4 +1,4 @@
-import L from "leaflet"
+import L, { Marker } from "leaflet"
 import "leaflet.markercluster/dist/leaflet.markercluster"
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
@@ -14,36 +14,27 @@ type MarkerClusterProps = {
   onClick?: (coord: Coord) => void
 }
 
-const boulderCluster = new L.MarkerClusterGroup()
-const cliffCluster = new L.MarkerClusterGroup()
-const crackCluster = new L.MarkerClusterGroup()
-const genericCluster = new L.MarkerClusterGroup()
+export const CLOSE_ZOOM = 15
+
+const options: L.MarkerClusterGroupOptions = {
+  showCoverageOnHover: true,
+  spiderfyOnMaxZoom: true,
+  disableClusteringAtZoom: CLOSE_ZOOM,
+  animate: true,
+  removeOutsideVisibleBounds: true,
+}
 
 const GENERIC_ICON = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.5.1/dist/images/marker-icon.png",
   iconSize: [25, 41]
 });
 
-const getCluster = (icon: ClusterType) => {
-  switch (icon) {
-    case 'boulder':
-      return boulderCluster
-    case 'cliff':
-      return cliffCluster
-    case 'crack':
-      return crackCluster
-    default:
-      return genericCluster
-  }
-}
-
 const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick }) => {
   const map = useMap()
 
   const firstCoord = markers[0]
+  const [cluster, setCluster] = React.useState<L.MarkerClusterGroup>()
   const [prevFirstCoord, setPrevFirstCoord] = React.useState<Coord | undefined>(undefined)
-
-  const cluster = getCluster(icon)
 
   const onMarkerClick = (e: L.LeafletMouseEvent) => {
     const coord: Coord = [e.latlng.lat, e.latlng.lng]
@@ -53,11 +44,32 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
   }
 
   useEffect(() => {
+    const removeCluster = () => {
+      if (cluster) {
+        cluster.remove()
+      }
+    }
+
+    const newCluster = new L.MarkerClusterGroup(options)
+    setCluster(newCluster)
+
+    return removeCluster
+  }, [])
+
+  useEffect(() => {
+    if (!cluster || !map) {
+      return
+    }
+
     cluster.on('click', onMarkerClick)
     return () => {
       cluster.off('click', onMarkerClick)
     }
   }, [cluster])
+
+  if (!cluster) {
+    return null
+  }
 
   const customIcon = icon === 'generic' ? GENERIC_ICON : new L.Icon({
     iconUrl: `${icon}.png`,
@@ -67,15 +79,30 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
   if (firstCoord !== prevFirstCoord) {
     setPrevFirstCoord(firstCoord)
     cluster.clearLayers()
-    markers.forEach(position =>
-      L.marker(new L.LatLng(position[0], position[1]), {
-        icon: customIcon
-      }).addTo(cluster)
-    )
 
+    console.log({
+      cluster,
+      markers,
+      map
+    })
 
+    markers.forEach(position => {
+      console.log('adding marker ', {
+        icon,
+        position
+      })
+      try {
+
+        L.marker(new L.LatLng(position[0], position[1]), {
+          icon: customIcon
+        }).addTo(cluster)
+      } catch (e) {
+        console.log('error adding marker', e)
+      }
+    })
 
     map.addLayer(cluster)
+
   }
 
   return null

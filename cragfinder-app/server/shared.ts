@@ -79,3 +79,10 @@ export const getBoundsGridCells = (areaGrid: AreaGrid, bounds: Bounds): [number,
 
   return cells
 }
+
+export const AVAILABLE_MAPS = ['openstreetmap', 'mml_terrain', 'mml_satellite', 'mml_background', 'mml_simple'] as const
+export type AvailableMapType = typeof AVAILABLE_MAPS[number]
+
+export type LeafletMapConfig = Record<AvailableMapType, string>
+export type MapTileUrlCreator = (x: number, y: number, z: number) => string
+export type MapConfig = Record<AvailableMapType, MapTileUrlCreator>

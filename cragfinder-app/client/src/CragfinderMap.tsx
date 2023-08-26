@@ -1,12 +1,15 @@
 import React, { useEffect } from "react"
 import { MapContainer, TileLayer, useMap } from "react-leaflet"
-import { AreaGrid, Bounds, Coord, Line, MapData, Point, findPartitionOfPoint, getBoundsGridCells } from "./shared"
+import { AVAILABLE_MAPS, AreaGrid, AvailableMapType, Bounds, Coord, LeafletMapConfig, Line, MapData, Point, distance, findPartitionOfPoint, getBoundsGridCells } from "./shared"
 import { getAreaGrid, getCracks, getMapData } from "./api"
 import L from "leaflet";
 import "leaflet.markercluster/dist/leaflet.markercluster";
-import MarkerCluster from "./MarkerCluster";
-import { MapSession, SettingToggle, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
+import MarkerCluster, { CLOSE_ZOOM } from "./MarkerCluster";
+import { MapSession, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
 import { pickRandomlyFromArray } from "./util";
+import { MAP_NAMES, MAP_URLS } from "./maps";
+import { max } from "lodash";
+import { MapOptions } from "./MapOptions";
 
 const MINIMUM_ZOOM = 11
 const MAX_MARKERS = 250
@@ -17,14 +20,6 @@ const linesToCoords = (lines: Line): Coord => {
   const lng = lines.reduce((acc, cur) => acc + cur[1], 0) / lines.length
 
   return [lat, lng]
-}
-
-const toggleLabels: Record<SettingToggle, string> = {
-  showBoulders: 'Boulders',
-  showCliffs: 'Cliffs',
-  showCracks: 'Cracks',
-  allowLocation: 'Allow location',
-  focusLocation: 'Focus location'
 }
 
 const isValidindex = (point: Point, areaGrid: AreaGrid) => {
@@ -136,6 +131,8 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cliffs: [],
     cracks: []
   })
+  console.log('Map data', mapData)
+  console.log({cracks})
   const [userLocations, setUserLocations] = React.useState<Coord[]>([])
 
   const pushNewUserLocation = (location: Coord) => {
@@ -292,15 +289,11 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
 
   return (
     <div className="map-view">
-      <div className="map-controls">
-        {TOGGLES.map(toggle => (
-          <label key={`toggle-${toggle}`}><input type="checkbox" checked={userSettings[toggle]} onChange={() => updateSettings({ ...userSettings, [toggle]: !userSettings[toggle] })} /> {toggleLabels[toggle]}</label>
-        ))}
-      </div>
+      <MapOptions userSettings={userSettings} updateSettings={updateSettings} />
       <MapContainer center={userSession.center} zoom={userSession.zoom} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url={MAP_URLS[userSettings.mapToUse]}
         />
         <MapHook mapFetch={userSession} setMapFetch={updateSession} focusLocation={getFocusLocation()} />
         <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} icon="generic" />
@@ -315,31 +308,15 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
 const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void, focusLocation?: Coord | undefined }> = ({ mapFetch, setMapFetch, focusLocation }) => {
   const map = useMap()
 
+  const [lastFlyTime, setLastFlyTime] = React.useState<number>(0)
+
+
   const onMoveEnd = () => {
+    map.eachLayer(layer => {
+      console.log('Layer: ', layer)
+    })
     pollMap()
-    if (focusLocation) {
-      map.flyTo(focusLocation)
-    }
   }
-
-  useEffect(() => {
-    map.on('moveend', onMoveEnd)
-    const remove = () => {
-      map.off('moveend', onMoveEnd)
-    }
-    return remove
-  }, [map])
-
-  useEffect(() => {
-    if (!map) {
-      return
-    }
-
-    if (focusLocation) {
-      map.flyTo(focusLocation)
-    }
-
-  }, [focusLocation, map])
 
   const pollMap = () => {
     if (!map) {
@@ -351,8 +328,55 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
     const centerLatLng = map.getCenter()
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]
     const state = { ...mapFetch, bounds, zoom, center }
+
+    console.log(zoom)
     setMapFetch(state)
   }
+
+  const flyToFocusLocation = () => {
+    if (!map || !focusLocation) {
+      console.log('No map or focus location')
+      console.log({
+        map,
+        focusLocation
+      })
+      return
+    }
+
+    const location = map.getCenter()
+    const locationCoord: Coord = [location.lat, location.lng]
+
+    if (Date.now() - lastFlyTime > 1000 && distance(locationCoord, focusLocation) > 5) {
+      const dist = distance(locationCoord, focusLocation)
+      console.log({
+        focusLocation,
+        locationCoord,
+        dist
+      })
+      const zoom = max([CLOSE_ZOOM, map.getZoom()])
+
+      console.log('Focus location', focusLocation, zoom)
+      map.flyTo(focusLocation, zoom)
+      setLastFlyTime(Date.now())
+    }
+  }
+
+  useEffect(() => {
+    console.log('Map hook')
+
+    map.on('moveend', onMoveEnd)
+    const remove = () => {
+      map.off('moveend', onMoveEnd)
+    }
+    onMoveEnd()
+    return remove
+  }, [map])
+
+  if (!map) {
+    return null
+  }
+
+  flyToFocusLocation()
 
   return null
 }
@@ -360,4 +384,3 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
 const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
   return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
 }
-
