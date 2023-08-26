@@ -23,8 +23,6 @@ router.get('/tile/:z/:x/:y', async (req, res) => {
   const y = Number(req.params.y)
   const z = Number(req.params.z)
 
-  console.log(`mapType: ${mapType}, x: ${x}, y: ${y}, z: ${z}`)
-
   if (!mapType) {
     res.status(400).send()
     return

@@ -131,8 +131,6 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cliffs: [],
     cracks: []
   })
-  console.log('Map data', mapData)
-  console.log({cracks})
   const [userLocations, setUserLocations] = React.useState<Coord[]>([])
 
   const pushNewUserLocation = (location: Coord) => {
@@ -312,9 +310,6 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
 
 
   const onMoveEnd = () => {
-    map.eachLayer(layer => {
-      console.log('Layer: ', layer)
-    })
     pollMap()
   }
 
@@ -329,17 +324,11 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
     const center: Coord = [centerLatLng.lat, centerLatLng.lng]
     const state = { ...mapFetch, bounds, zoom, center }
 
-    console.log(zoom)
     setMapFetch(state)
   }
 
   const flyToFocusLocation = () => {
     if (!map || !focusLocation) {
-      console.log('No map or focus location')
-      console.log({
-        map,
-        focusLocation
-      })
       return
     }
 
@@ -347,23 +336,14 @@ const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSessi
     const locationCoord: Coord = [location.lat, location.lng]
 
     if (Date.now() - lastFlyTime > 1000 && distance(locationCoord, focusLocation) > 5) {
-      const dist = distance(locationCoord, focusLocation)
-      console.log({
-        focusLocation,
-        locationCoord,
-        dist
-      })
       const zoom = max([CLOSE_ZOOM, map.getZoom()])
 
-      console.log('Focus location', focusLocation, zoom)
       map.flyTo(focusLocation, zoom)
       setLastFlyTime(Date.now())
     }
   }
 
   useEffect(() => {
-    console.log('Map hook')
-
     map.on('moveend', onMoveEnd)
     const remove = () => {
       map.off('moveend', onMoveEnd)

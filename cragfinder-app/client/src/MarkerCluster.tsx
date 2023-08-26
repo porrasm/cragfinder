@@ -80,29 +80,13 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
     setPrevFirstCoord(firstCoord)
     cluster.clearLayers()
 
-    console.log({
-      cluster,
-      markers,
-      map
-    })
-
     markers.forEach(position => {
-      console.log('adding marker ', {
-        icon,
-        position
-      })
-      try {
-
-        L.marker(new L.LatLng(position[0], position[1]), {
-          icon: customIcon
-        }).addTo(cluster)
-      } catch (e) {
-        console.log('error adding marker', e)
-      }
+      L.marker(new L.LatLng(position[0], position[1]), {
+        icon: customIcon
+      }).addTo(cluster)
     })
 
     map.addLayer(cluster)
-
   }
 
   return null
