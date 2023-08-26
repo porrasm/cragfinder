@@ -37,6 +37,17 @@ const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
   lng1: latLngBounds.getEast()
 })
 
+const openMapOnClick = (coord: Coord) => {
+  if (!window.confirm(`Open Google Maps (${coord[0]}, ${coord[1]})?`)) {
+    return
+  }
+
+  const lat = coord[0]
+  const lng = coord[1]
+  const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+  window.open(url, '_blank')
+}
+
 export const CragFinderMapWrapper: React.FC = () => {
   const userDataManager = getUserDataManager()
 
@@ -124,11 +135,32 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cliffs: [],
     cracks: []
   })
-  const [userLocation, setUserLocation] = React.useState<Coord>()
+  const [userLocations, setUserLocations] = React.useState<Coord[]>([])
+
+  const pushNewUserLocation = (location: Coord) => {
+    const MAX_LOCATIONS = 5
+
+    const newLocations = [...userLocations, location]
+    const locations = newLocations.length > MAX_LOCATIONS ? newLocations.slice(newLocations.length - MAX_LOCATIONS) : newLocations
+
+    setUserLocations(locations)
+  }
+
+  const getAverageUserLocation = (): Coord => {
+    if (userLocations.length === 0) {
+      return [0, 0]
+    }
+
+    const lat = userLocations.reduce((acc, cur) => acc + cur[0], 0) / userLocations.length
+    const lng = userLocations.reduce((acc, cur) => acc + cur[1], 0) / userLocations.length
+
+    return [lat, lng]
+  }
 
   useEffect(() => {
     // set interval to update user location
-    const interval = setInterval(() => {
+
+    const pollLocation = () => {
       if (!userSettings.allowLocation) {
         return
       }
@@ -141,16 +173,20 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
         const lat = position.coords.latitude
         const lng = position.coords.longitude
         const location: Coord = [lat, lng]
-        setUserLocation(location)
+        pushNewUserLocation(location)
       }, (error) => {
         console.log(error)
         return null
       })
+    }
 
-    }, 5000)
+    const interval = setInterval(() => {
+      pollLocation()
+    }, 1000)
+    pollLocation()
 
     return () => clearInterval(interval)
-  }, [userSettings.allowLocation, setUserLocation])
+  }, [userSettings.allowLocation, setUserLocations])
 
 
   useEffect(() => {
@@ -258,10 +294,10 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapHook mapFetch={userSession} setMapFetch={updateSession} />
-        <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocation ? [userLocation] : []} icon="generic" />
-        <MarkerCluster key={'boulder-cluster'} markers={getFilteredBoulders()} icon="boulder" />
-        <MarkerCluster key={'cliff-cluster'} markers={getFilteredCliffs()} icon="cliff" />
-        <MarkerCluster key={'crack-cluster'} markers={getFilteredCracks()} icon="crack" />
+        <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} icon="generic" />
+        <MarkerCluster key={'boulder-cluster'} markers={getFilteredBoulders()} icon="boulder" onClick={openMapOnClick} />
+        <MarkerCluster key={'cliff-cluster'} markers={getFilteredCliffs()} icon="cliff" onClick={openMapOnClick} />
+        <MarkerCluster key={'crack-cluster'} markers={getFilteredCracks()} icon="crack" onClick={openMapOnClick} />
       </MapContainer>
     </div>
   )
