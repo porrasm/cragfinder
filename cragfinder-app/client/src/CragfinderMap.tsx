@@ -23,7 +23,8 @@ const toggleLabels: Record<SettingToggle, string> = {
   showBoulders: 'Boulders',
   showCliffs: 'Cliffs',
   showCracks: 'Cracks',
-  allowLocation: 'Allow location'
+  allowLocation: 'Allow location',
+  focusLocation: 'Focus location'
 }
 
 const isValidindex = (point: Point, areaGrid: AreaGrid) => {
@@ -281,6 +282,14 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     return pickRandomlyFromArray(cracks.map(linesToCoords).filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
   }
 
+  const getFocusLocation = (): Coord | undefined => {
+    if (!userSettings.focusLocation || !userSettings.allowLocation || userLocations.length === 0) {
+      return undefined
+    }
+
+    return getAverageUserLocation()
+  }
+
   return (
     <div className="map-view">
       <div className="map-controls">
@@ -293,7 +302,7 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapHook mapFetch={userSession} setMapFetch={updateSession} />
+        <MapHook mapFetch={userSession} setMapFetch={updateSession} focusLocation={getFocusLocation()} />
         <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} icon="generic" />
         <MarkerCluster key={'boulder-cluster'} markers={getFilteredBoulders()} icon="boulder" onClick={openMapOnClick} />
         <MarkerCluster key={'cliff-cluster'} markers={getFilteredCliffs()} icon="cliff" onClick={openMapOnClick} />
@@ -303,17 +312,34 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
   )
 }
 
-const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void }> = ({ mapFetch, setMapFetch }) => {
+const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void, focusLocation?: Coord | undefined }> = ({ mapFetch, setMapFetch, focusLocation }) => {
   const map = useMap()
 
-  useEffect(() => {
+  const onMoveEnd = () => {
     pollMap()
-    map.on('moveend', pollMap)
+    if (focusLocation) {
+      map.flyTo(focusLocation)
+    }
+  }
+
+  useEffect(() => {
+    map.on('moveend', onMoveEnd)
     const remove = () => {
-      map.off('moveend', pollMap)
+      map.off('moveend', onMoveEnd)
     }
     return remove
   }, [map])
+
+  useEffect(() => {
+    if (!map) {
+      return
+    }
+
+    if (focusLocation) {
+      map.flyTo(focusLocation)
+    }
+
+  }, [focusLocation, map])
 
   const pollMap = () => {
     if (!map) {
