@@ -1,35 +1,37 @@
-import L, { Marker } from "leaflet"
+import L from "leaflet"
 import "leaflet.markercluster/dist/leaflet.markercluster"
 import "leaflet.markercluster/dist/MarkerCluster.css"
 import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 import { useMap } from "react-leaflet"
-import { Coord } from "./shared"
+import { Coord, MapDataType } from "./shared"
 import React, { useEffect } from "react"
 
-type ClusterType = 'boulder' | 'cliff' | 'crack' | 'generic'
+type ClusterType = MapDataType | undefined
 
 type MarkerClusterProps = {
   markers: Coord[]
-  icon: ClusterType
-  onClick?: (coord: Coord) => void
+  icon?: ClusterType
+  isFavorite?: boolean
+  onClick?: (coord: Coord, type: ClusterType) => void
+  disableAtZoom?: number
 }
 
 export const CLOSE_ZOOM = 15
 
-const options: L.MarkerClusterGroupOptions = {
+const options = (disableAtZoom: number): L.MarkerClusterGroupOptions => ({
   showCoverageOnHover: true,
   spiderfyOnMaxZoom: true,
-  disableClusteringAtZoom: CLOSE_ZOOM,
+  disableClusteringAtZoom: disableAtZoom,
   animate: true,
   removeOutsideVisibleBounds: true,
-}
+})
 
 const GENERIC_ICON = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.5.1/dist/images/marker-icon.png",
   iconSize: [25, 41]
 });
 
-const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick }) => {
+const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick, isFavorite, disableAtZoom }) => {
   const map = useMap()
 
   const firstCoord = markers[0]
@@ -39,7 +41,7 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
   const onMarkerClick = (e: L.LeafletMouseEvent) => {
     const coord: Coord = [e.latlng.lat, e.latlng.lng]
     if (onClick) {
-      onClick(coord)
+      onClick(coord, icon)
     }
   }
 
@@ -50,7 +52,7 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
       }
     }
 
-    const newCluster = new L.MarkerClusterGroup(options)
+    const newCluster = new L.MarkerClusterGroup(options(disableAtZoom ?? CLOSE_ZOOM))
     setCluster(newCluster)
 
     return removeCluster
@@ -71,8 +73,8 @@ const MarkerCluster: React.FC<MarkerClusterProps> = ({ markers, icon, onClick })
     return null
   }
 
-  const customIcon = icon === 'generic' ? GENERIC_ICON : new L.Icon({
-    iconUrl: `${icon}.png`,
+  const customIcon = !icon ? GENERIC_ICON : new L.Icon({
+    iconUrl: `${icon}${isFavorite ? '-favorite' : ''}.png`,
     iconSize: [30, 30]
   })
 

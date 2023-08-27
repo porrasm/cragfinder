@@ -1,6 +1,6 @@
 import { AvailableMapType, Bounds, Coord, Line } from "./shared"
 
-export const TOGGLES = ['showBoulders', 'showCliffs', 'showCracks', 'allowLocation', 'focusLocation'] as const
+export const TOGGLES = ['showBoulders', 'showCliffs', 'showCracks', 'allowLocation', 'focusLocation', 'showOnlyFavorites', 'showHidden', 'showVisited'] as const
 export type SettingToggle = typeof TOGGLES[number]
 
 export type UserSettings = Record<SettingToggle, boolean> & {
@@ -13,18 +13,22 @@ export type MapSession = {
   center: Coord
 }
 
-type Category = 'favorite' | 'visited' | 'hidden'
-
-type WithNoteAndCategory<T> = {
-  value: T
+export type PointOptions = {
   note: string
-  category: Category
+  favorite: boolean
+  visited: boolean
+  hidden: boolean
 }
 
+export type WithNoteAndCategory = PointOptions & {
+  value: Coord
+}
+export type UserPointsData = Record<string, WithNoteAndCategory>
+
 export type UserData = {
-  boulders: Record<string, WithNoteAndCategory<Coord>>
-  cliffs: Record<string, WithNoteAndCategory<Coord>>
-  cracks: Record<string, WithNoteAndCategory<Coord>>
+  boulders: UserPointsData
+  cliffs: UserPointsData
+  cracks: UserPointsData
 }
 
 const validateUserSettings = (settings: UserSettings): boolean => {
@@ -64,7 +68,7 @@ const validateMapSession = (session: MapSession): boolean => {
 }
 
 
-export const coordToKey = (coord: Coord) => `${coord[0]}-${coord[1]}`
+export const coordToKey = (coord: Coord) => `${coord[0]},${coord[1]}`
 export const lineStringToKey = (lineString: Line) => coordToKey(lineString[0])
 
 export type UserConfig = {
@@ -89,6 +93,9 @@ export const DEFAULT_SETTINGS = (): UserSettings => ({
   allowLocation: false,
   focusLocation: false,
   mapToUse: 'openstreetmap',
+  showOnlyFavorites: false,
+  showHidden: false,
+  showVisited: true,
 })
 
 export const DEFAULT_SESSION = (): MapSession => ({

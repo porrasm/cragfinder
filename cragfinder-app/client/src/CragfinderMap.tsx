@@ -1,15 +1,15 @@
 import React, { useEffect } from "react"
-import { MapContainer, TileLayer, useMap } from "react-leaflet"
-import { AVAILABLE_MAPS, AreaGrid, AvailableMapType, Bounds, Coord, LeafletMapConfig, Line, MapData, Point, distance, findPartitionOfPoint, getBoundsGridCells } from "./shared"
-import { getAreaGrid, getCracks, getMapData } from "./api"
-import L from "leaflet";
+import { MapContainer, TileLayer } from "react-leaflet"
+import { AreaGrid, Coord, Line, MapData, MapDataType, Point, boundsContainsPoint, findPartitionOfPoint, getBoundsGridCells } from "./shared"
+import { getMapData } from "./api"
 import "leaflet.markercluster/dist/leaflet.markercluster";
-import MarkerCluster, { CLOSE_ZOOM } from "./MarkerCluster";
-import { MapSession, TOGGLES, UserData, UserSettings, getUserDataManager } from "./userData";
+import MarkerCluster from "./MarkerCluster";
+import { MapSession, UserData, UserPointsData, UserSettings, coordToKey } from "./userData";
 import { pickRandomlyFromArray } from "./util";
-import { MAP_NAMES, MAP_URLS } from "./maps";
-import { max } from "lodash";
+import { MAP_URLS } from "./maps";
 import { MapOptions } from "./MapOptions";
+import { MapHook } from "./MapHook";
+import { SelectedPoint, SelectedPointOptions } from "./SelectedPointOptions";
 
 const MINIMUM_ZOOM = 11
 const MAX_MARKERS = 250
@@ -26,85 +26,6 @@ const isValidindex = (point: Point, areaGrid: AreaGrid) => {
   return point.x >= 0 && point.x < areaGrid.length && point.y >= 0 && point.y < areaGrid[0].length
 }
 
-const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
-  lat0: latLngBounds.getSouth(),
-  lng0: latLngBounds.getWest(),
-  lat1: latLngBounds.getNorth(),
-  lng1: latLngBounds.getEast()
-})
-
-const openMapOnClick = (coord: Coord) => {
-  if (!window.confirm(`Open Google Maps (${coord[0]}, ${coord[1]})?`)) {
-    return
-  }
-
-  const lat = coord[0]
-  const lng = coord[1]
-  const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-  window.open(url, '_blank')
-}
-
-export const CragFinderMapWrapper: React.FC = () => {
-  const userDataManager = getUserDataManager()
-
-  const [areaGrid, setAreaGrid] = React.useState<AreaGrid>()
-  const [cracks, setCracks] = React.useState<Line[]>([])
-
-  const [userSettings, setUserSettings] = React.useState<UserSettings>()
-  const [userSession, setUserSession] = React.useState<MapSession>()
-  const [userData, setUserData] = React.useState<UserData>()
-
-  useEffect(() => {
-    getAreaGrid().then(areaGrid => setAreaGrid(areaGrid))
-    getCracks().then(cracks => setCracks(cracks))
-
-    userDataManager.loadSettings().then(settings => setUserSettings(settings))
-    userDataManager.loadSession().then(session => setUserSession(session))
-    userDataManager.loadUserData().then(userData => setUserData(userData))
-  }, [])
-
-  const updateSettings = (settings: UserSettings) => {
-    try {
-      userDataManager.saveSettings(settings).then(() => setUserSettings(settings))
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const updateSession = (session: MapSession) => {
-    try {
-      userDataManager.saveSession(session).then(() => setUserSession(session))
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const updateUserData = (userData: UserData) => {
-    try {
-      userDataManager.saveUserData(userData).then(() => setUserData(userData))
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  if (!areaGrid || !cracks || !userSettings || !userSession || !userData) {
-    return <div>Loading...</div>
-  }
-
-  return (
-    <CragfinderMap
-      areaGrid={areaGrid}
-      cracks={cracks}
-      userSettings={userSettings}
-      userSession={userSession}
-      userData={userData}
-      updateSettings={updateSettings}
-      updateSession={updateSession}
-      updateUserData={updateUserData}
-    />
-  )
-}
-
 type CragFinderProps = {
   areaGrid: AreaGrid,
   cracks: Line[],
@@ -116,7 +37,7 @@ type CragFinderProps = {
   updateUserData: (userData: UserData) => void
 }
 
-const CragfinderMap: React.FC<CragFinderProps> = ({
+export const CragfinderMap: React.FC<CragFinderProps> = ({
   areaGrid,
   cracks,
   userSettings,
@@ -132,6 +53,20 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     cracks: []
   })
   const [userLocations, setUserLocations] = React.useState<Coord[]>([])
+  const [selectedPoint, setSelectedPoint] = React.useState<SelectedPoint>()
+
+  const onSelectMapDataPoint = (coord: Coord, type?: MapDataType) => {
+    console.log('onSelectMapDataPoint', coord, type)
+    if (!type) {
+      return
+    }
+
+    setSelectedPoint({
+      coord,
+      type
+    })
+  }
+
 
   const pushNewUserLocation = (location: Coord) => {
     const MAX_LOCATIONS = 5
@@ -154,8 +89,6 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
   }
 
   useEffect(() => {
-    // set interval to update user location
-
     const pollLocation = () => {
       if (!userSettings.allowLocation) {
         return
@@ -255,28 +188,6 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     return <div>Loading...</div>
   }
 
-  const getFilteredBoulders = () => {
-    if (!userSettings.showBoulders) {
-      return []
-    }
-
-    return pickRandomlyFromArray(mapData.boulders.filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
-  }
-
-  const getFilteredCliffs = () => {
-    if (!userSettings.showCliffs) {
-      return []
-    }
-    return pickRandomlyFromArray(mapData.cliffs.map(linesToCoords).filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
-  }
-
-  const getFilteredCracks = () => {
-    if (!userSettings.showCracks) {
-      return []
-    }
-    return pickRandomlyFromArray(cracks.map(linesToCoords).filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS)
-  }
-
   const getFocusLocation = (): Coord | undefined => {
     if (!userSettings.focusLocation || !userSettings.allowLocation || userLocations.length === 0) {
       return undefined
@@ -285,82 +196,53 @@ const CragfinderMap: React.FC<CragFinderProps> = ({
     return getAverageUserLocation()
   }
 
+  function getFilteredPoints<T>(show: boolean, points: T[], pointsData: UserPointsData, toCoord: (t: T) => Coord): Coord[] {
+    if (!show || userSettings.showOnlyFavorites) {
+      return []
+    }
+
+    return pickRandomlyFromArray(
+      points.map(toCoord)
+        .filter(c => {
+          const key = coordToKey(c)
+          const data = pointsData[key]
+          const hide =
+            (!userSettings.showHidden && data?.hidden)
+            || (!userSettings.showVisited && data?.visited)
+            || data?.favorite
+          return !hide
+        })
+        .filter(c => boundsContainsPoint(userSession.bounds, c)), MAX_MARKERS
+    )
+  }
+
+  function getFavoritePoints(pointsData: UserPointsData): Coord[] {
+    return Object.values(pointsData)
+      .filter(value => value.favorite)
+      .map(value => value.value)
+  }
+
   return (
     <div className="map-view">
       <MapOptions userSettings={userSettings} updateSettings={updateSettings} />
+      {!!selectedPoint && <SelectedPointOptions selectedPoint={selectedPoint} userData={userData} updateUserData={updateUserData} close={() => setSelectedPoint(undefined)} />}
       <MapContainer center={userSession.center} zoom={userSession.zoom} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={MAP_URLS[userSettings.mapToUse]}
         />
         <MapHook mapFetch={userSession} setMapFetch={updateSession} focusLocation={getFocusLocation()} />
-        <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} icon="generic" />
-        <MarkerCluster key={'boulder-cluster'} markers={getFilteredBoulders()} icon="boulder" onClick={openMapOnClick} />
-        <MarkerCluster key={'cliff-cluster'} markers={getFilteredCliffs()} icon="cliff" onClick={openMapOnClick} />
-        <MarkerCluster key={'crack-cluster'} markers={getFilteredCracks()} icon="crack" onClick={openMapOnClick} />
+        <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} />
+
+        <MarkerCluster key={'favorite-boulder-cluster'} markers={getFavoritePoints(userData.boulders)} icon="boulder" onClick={onSelectMapDataPoint} isFavorite={true} />
+        <MarkerCluster key={'favorite-cliff-cluster'} markers={getFavoritePoints(userData.cliffs)} icon="cliff" onClick={onSelectMapDataPoint} isFavorite={true} />
+        <MarkerCluster key={'favorite-crack-cluster'} markers={getFavoritePoints(userData.cracks)} icon="crack" onClick={onSelectMapDataPoint} isFavorite={true} />
+
+        <MarkerCluster key={'boulder-cluster'} markers={getFilteredPoints(userSettings.showBoulders, mapData.boulders, userData.boulders, c => c)} icon="boulder" onClick={onSelectMapDataPoint} />
+        <MarkerCluster key={'cliff-cluster'} markers={getFilteredPoints(userSettings.showCliffs, mapData.cliffs, userData.cliffs, linesToCoords)} icon="cliff" onClick={onSelectMapDataPoint} />
+        <MarkerCluster key={'crack-cluster'} markers={getFilteredPoints(userSettings.showCracks, cracks, userData.cracks, linesToCoords)} icon="crack" onClick={onSelectMapDataPoint} />
+
       </MapContainer>
     </div>
   )
-}
-
-const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void, focusLocation?: Coord | undefined }> = ({ mapFetch, setMapFetch, focusLocation }) => {
-  const map = useMap()
-
-  const [lastFlyTime, setLastFlyTime] = React.useState<number>(0)
-
-
-  const onMoveEnd = () => {
-    pollMap()
-  }
-
-  const pollMap = () => {
-    if (!map) {
-      return
-    }
-
-    const zoom = map.getZoom()
-    const bounds = latLngBoundsToBounds(map.getBounds())
-    const centerLatLng = map.getCenter()
-    const center: Coord = [centerLatLng.lat, centerLatLng.lng]
-    const state = { ...mapFetch, bounds, zoom, center }
-
-    setMapFetch(state)
-  }
-
-  const flyToFocusLocation = () => {
-    if (!map || !focusLocation) {
-      return
-    }
-
-    const location = map.getCenter()
-    const locationCoord: Coord = [location.lat, location.lng]
-
-    if (Date.now() - lastFlyTime > 1000 && distance(locationCoord, focusLocation) > 5) {
-      const zoom = max([CLOSE_ZOOM, map.getZoom()])
-
-      map.flyTo(focusLocation, zoom)
-      setLastFlyTime(Date.now())
-    }
-  }
-
-  useEffect(() => {
-    map.on('moveend', onMoveEnd)
-    const remove = () => {
-      map.off('moveend', onMoveEnd)
-    }
-    onMoveEnd()
-    return remove
-  }, [map])
-
-  if (!map) {
-    return null
-  }
-
-  flyToFocusLocation()
-
-  return null
-}
-
-const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
-  return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
 }

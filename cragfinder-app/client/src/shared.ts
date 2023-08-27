@@ -16,6 +16,8 @@ export type Point = {
   y: number
 }
 
+export type MapDataType = 'boulder' | 'cliff' | 'crack'
+
 export type MapData = {
   boulders: Coord[]
   cliffs: Line[]
@@ -105,4 +107,8 @@ export const distance = (p1: Coord, p2: Coord) => {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in metres
+}
+
+export const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
+  return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
 }

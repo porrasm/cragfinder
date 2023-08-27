@@ -16,6 +16,8 @@ export type Point = {
   y: number
 }
 
+export type MapDataType = 'boulder' | 'cliff' | 'crack'
+
 export type MapData = {
   boulders: Coord[]
   cliffs: Line[]
@@ -86,3 +88,27 @@ export type AvailableMapType = typeof AVAILABLE_MAPS[number]
 export type LeafletMapConfig = Record<AvailableMapType, string>
 export type MapTileUrlCreator = (x: number, y: number, z: number) => string
 export type MapConfig = Record<AvailableMapType, MapTileUrlCreator>
+
+export const distance = (p1: Coord, p2: Coord) => {
+  const lat1 = p1[0]
+  const lat2 = p2[0]
+  const lon1 = p1[1]
+  const lon2 = p2[1]
+
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI / 180; // φ, λ in radians
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+}
+
+export const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
+  return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
+}

@@ -1,8 +1,8 @@
 import React from "react";
-import { CragFinderMapWrapper } from "./CragfinderMap";
 import { Header, TABS, Tab } from "./Header";
 import { Markdown } from "./Markdown";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { CragFinderMapWrapper } from "./CragfinderMapWrapper";
 
 const App = () => {
   const [tab, setTab] = React.useState<Tab>(TABS[0])
