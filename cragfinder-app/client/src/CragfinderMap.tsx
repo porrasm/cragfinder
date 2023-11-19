@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import { MapContainer, TileLayer } from "react-leaflet"
-import { AreaGrid, Coord, Line, MapData, MapDataType, Point, boundsContainsPoint, findPartitionOfPoint, getBoundsGridCells } from "./shared"
+import { AreaGrid, Coord, Line, MapData, MapDataType, Point, boundsContainsPoint, findPartitionOfPoint, getBoundsGridCells, lineLength } from "./shared"
 import { getMapData } from "./api"
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import MarkerCluster from "./MarkerCluster";
@@ -196,7 +196,8 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
     return getAverageUserLocation()
   }
 
-  function getFilteredPoints<T>(show: boolean, points: T[], pointsData: UserPointsData, toCoord: (t: T) => Coord): Coord[] {
+  function getFilteredPoints<T>(show: boolean, points: T[], pointsData: UserPointsData, toCoord: (t: T) => Coord, additionalFilter?: (t: T) => boolean): Coord[] {
+    points = additionalFilter ? points.filter(additionalFilter) : points
     if (!show || userSettings.showOnlyFavorites) {
       return []
     }
@@ -222,6 +223,23 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
       .map(value => value.value)
   }
 
+  const lineDistanceFilter = () => {
+    if (!userSettings.minimumCliffLength) {
+      return undefined
+    }
+
+    try {
+      const parsed = parseFloat(userSettings.minimumCliffLength)
+      if (isNaN(parsed)) {
+        return undefined
+      }
+
+      return (line: Line) => lineLength(line) >= parsed
+    } catch {
+      return undefined
+    } 
+  }
+
   return (
     <div className="map-view">
       <MapOptions userSettings={userSettings} updateSettings={updateSettings} />
@@ -239,7 +257,7 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
         <MarkerCluster key={'favorite-crack-cluster'} markers={getFavoritePoints(userData.cracks)} icon="crack" onClick={onSelectMapDataPoint} isFavorite={true} />
 
         <MarkerCluster key={'boulder-cluster'} markers={getFilteredPoints(userSettings.showBoulders, mapData.boulders, userData.boulders, c => c)} icon="boulder" onClick={onSelectMapDataPoint} />
-        <MarkerCluster key={'cliff-cluster'} markers={getFilteredPoints(userSettings.showCliffs, mapData.cliffs, userData.cliffs, linesToCoords)} icon="cliff" onClick={onSelectMapDataPoint} />
+        <MarkerCluster key={'cliff-cluster'} markers={getFilteredPoints(userSettings.showCliffs, mapData.cliffs, userData.cliffs, linesToCoords, lineDistanceFilter())} icon="cliff" onClick={onSelectMapDataPoint} />
         <MarkerCluster key={'crack-cluster'} markers={getFilteredPoints(userSettings.showCracks, cracks, userData.cracks, linesToCoords)} icon="crack" onClick={onSelectMapDataPoint} />
 
       </MapContainer>

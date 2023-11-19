@@ -44,5 +44,9 @@ export const MapOptions: React.FC<MapOptionsProps> = ({ userSettings, updateSett
       showHidden: {
         label: 'Hidden'
       },
+      minimumCliffLength: {
+        label: 'Minimum cliff length',
+        options: 'anyString'
+      },
     }} />
 }

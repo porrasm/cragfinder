@@ -109,6 +109,16 @@ export const distance = (p1: Coord, p2: Coord) => {
   return R * c; // in metres
 }
 
+export const lineLength = (line: Line) => {
+  let length = 0
+
+  for (let i = 1; i < line.length; i++) {
+    length += distance(line[i - 1], line[i])
+  }
+
+  return length
+}
+
 export const boundsContainsPoint = (bounds: Bounds, point: Coord) => {
   return bounds.lat0 <= point[0] && bounds.lat1 >= point[0] && bounds.lng0 <= point[1] && bounds.lng1 >= point[1]
 }

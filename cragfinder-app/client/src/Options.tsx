@@ -79,7 +79,7 @@ export function Options<T extends Values>({ options, values, onChange, showText,
   const getTextInput = (textInput: TextInputElemOption) => <div key={`text-input-${textInput.key}`}>
     <label>{textInput.label}</label>
     {/* onChange is unoptimal */}
-    <input type="text" value={`${values[textInput.key]}`} onChange={(e) => onTextInputChange(textInput.key, e.target.value)} />
+    <input className={classNames('option-text-input')} type="text" value={`${values[textInput.key]}`} onChange={(e) => onTextInputChange(textInput.key, e.target.value)} />
   </div>
 
   const optionsContent = () => <React.Fragment key='map-options-content'>

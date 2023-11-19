@@ -96,6 +96,10 @@ body {
   overflow-y: scroll;
 }
 
+.option-text-input {
+  min-width: 100px;
+}
+
 /* Desktop */
 @media (min-width: 1200px) {
   .hide-on-desktop {

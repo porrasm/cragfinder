@@ -5,6 +5,7 @@ export type SettingToggle = typeof TOGGLES[number]
 
 export type UserSettings = Record<SettingToggle, boolean> & {
   mapToUse: AvailableMapType
+  minimumCliffLength: string
 }
 
 export type MapSession = {
@@ -37,6 +38,14 @@ const validateUserSettings = (settings: UserSettings): boolean => {
       return false
     }
   })
+  if (typeof settings.mapToUse !== 'string') {
+    return false
+  }
+
+  // New settings added after initial release
+  if (typeof settings.mapToUse !== 'string' || !settings.minimumCliffLength.length) {
+    settings.minimumCliffLength = ""
+  }
   return true
 }
 
@@ -96,6 +105,7 @@ export const DEFAULT_SETTINGS = (): UserSettings => ({
   showOnlyFavorites: false,
   showHidden: false,
   showVisited: true,
+  minimumCliffLength: "",
 })
 
 export const DEFAULT_SESSION = (): MapSession => ({
