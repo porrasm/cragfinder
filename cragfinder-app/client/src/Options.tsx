@@ -88,9 +88,6 @@ export function Options<T extends Values>({ options, values, onChange, showText,
       Object.keys(options).map(key => {
         const option = options[key]
 
-        console.log('option', option)
-        console.log('Type of option.options', typeof option.options)
-
         if (typeof option.options === "object") {
           return getDropdown({ ...option, key })
         } else if (option.options === 'anyString') {

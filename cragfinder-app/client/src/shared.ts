@@ -110,6 +110,10 @@ export const distance = (p1: Coord, p2: Coord) => {
 }
 
 export const lineLength = (line: Line) => {
+  if (line.length < 2) {
+    return 0
+  }
+
   let length = 0
 
   for (let i = 1; i < line.length; i++) {

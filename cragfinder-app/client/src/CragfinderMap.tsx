@@ -56,7 +56,6 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
   const [selectedPoint, setSelectedPoint] = React.useState<SelectedPoint>()
 
   const onSelectMapDataPoint = (coord: Coord, type?: MapDataType) => {
-    console.log('onSelectMapDataPoint', coord, type)
     if (!type) {
       return
     }
@@ -229,15 +228,15 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
     }
 
     try {
-      const parsed = parseFloat(userSettings.minimumCliffLength)
-      if (isNaN(parsed)) {
+      const minLengthValue = parseFloat(userSettings.minimumCliffLength)
+      if (isNaN(minLengthValue) || minLengthValue <= 1) {
         return undefined
       }
 
-      return (line: Line) => lineLength(line) >= parsed
+      return (line: Line) => lineLength(line) >= minLengthValue
     } catch {
       return undefined
-    } 
+    }
   }
 
   return (

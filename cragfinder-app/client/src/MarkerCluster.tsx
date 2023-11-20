@@ -16,7 +16,7 @@ type MarkerClusterProps = {
   disableAtZoom?: number
 }
 
-export const CLOSE_ZOOM = 15
+export const CLOSE_ZOOM = 14
 
 const options = (disableAtZoom: number): L.MarkerClusterGroupOptions => ({
   showCoverageOnHover: true,
