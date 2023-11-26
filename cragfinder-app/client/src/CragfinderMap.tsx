@@ -10,6 +10,7 @@ import { MAP_URLS } from "./maps";
 import { MapOptions } from "./MapOptions";
 import { MapHook } from "./MapHook";
 import { SelectedPoint, SelectedPointOptions } from "./SelectedPointOptions";
+import { getQueryParams, setQueryParams } from "./queryParams";
 
 const MINIMUM_ZOOM = 11
 const MAX_MARKERS = 250
@@ -54,6 +55,27 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
   })
   const [userLocations, setUserLocations] = React.useState<Coord[]>([])
   const [selectedPoint, setSelectedPoint] = React.useState<SelectedPoint>()
+  const [targetPoint, setTargetPoint] = React.useState<Coord>()
+
+  useEffect(() => {
+    const urlParams = getQueryParams()
+
+    const selectedPointUrl = urlParams['selectedPoint']
+    if (selectedPointUrl?.length) {
+      const [lat, lng, type] = selectedPointUrl.split(',')
+
+      const latNmbr = parseFloat(lat)
+      const lngNmbr = parseFloat(lng)
+
+      const point: SelectedPoint = {
+        coord: [latNmbr, lngNmbr],
+        type: type as MapDataType
+      }
+
+      setSelectedPoint(point)
+      setTargetPoint(point.coord)
+    }
+  }, [])
 
   const onSelectMapDataPoint = (coord: Coord, type?: MapDataType) => {
     if (!type) {
@@ -64,6 +86,8 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
       coord,
       type
     })
+    const selectedPoint = `${coord[0]},${coord[1]},${type}`
+    setQueryParams({ selectedPoint })
   }
 
 
@@ -188,6 +212,10 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
   }
 
   const getFocusLocation = (): Coord | undefined => {
+    if (targetPoint) {
+      return targetPoint
+    }
+
     if (!userSettings.focusLocation || !userSettings.allowLocation || userLocations.length === 0) {
       return undefined
     }
@@ -242,13 +270,16 @@ export const CragfinderMap: React.FC<CragFinderProps> = ({
   return (
     <div className="map-view">
       <MapOptions userSettings={userSettings} updateSettings={updateSettings} />
-      {!!selectedPoint && <SelectedPointOptions selectedPoint={selectedPoint} userData={userData} updateUserData={updateUserData} close={() => setSelectedPoint(undefined)} />}
+      {!!selectedPoint && <SelectedPointOptions selectedPoint={selectedPoint} userData={userData} updateUserData={updateUserData} close={() => {
+        setSelectedPoint(undefined)
+        setQueryParams({ selectedPoint: undefined })
+      }} />}
       <MapContainer center={userSession.center} zoom={userSession.zoom} scrollWheelZoom={true} id='map' >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={MAP_URLS[userSettings.mapToUse]}
         />
-        <MapHook mapFetch={userSession} setMapFetch={updateSession} focusLocation={getFocusLocation()} />
+        <MapHook mapFetch={userSession} setMapFetch={updateSession} focusLocation={getFocusLocation()} focusedLocation={() => setTargetPoint(undefined)} />
         <MarkerCluster key={'user-location'} markers={userSettings.allowLocation && userLocations.length ? [getAverageUserLocation()] : []} />
 
         <MarkerCluster key={'favorite-boulder-cluster'} markers={getFavoritePoints(userData.boulders)} icon="boulder" onClick={onSelectMapDataPoint} isFavorite={true} />

@@ -12,7 +12,7 @@ const latLngBoundsToBounds = (latLngBounds: L.LatLngBounds): Bounds => ({
   lng1: latLngBounds.getEast()
 })
 
-export const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void, focusLocation?: Coord | undefined }> = ({ mapFetch, setMapFetch, focusLocation }) => {
+export const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: MapSession) => void, focusLocation?: Coord | undefined, focusedLocation?: () => void }> = ({ mapFetch, setMapFetch, focusLocation, focusedLocation }) => {
   const map = useMap()
 
   const [lastFlyTime, setLastFlyTime] = React.useState<number>(0)
@@ -49,6 +49,10 @@ export const MapHook: React.FC<{ mapFetch: MapSession, setMapFetch: (mapFetch: M
 
       map.flyTo(focusLocation, zoom)
       setLastFlyTime(Date.now())
+
+      if (focusedLocation) {
+        focusedLocation()
+      }
     }
   }
 
